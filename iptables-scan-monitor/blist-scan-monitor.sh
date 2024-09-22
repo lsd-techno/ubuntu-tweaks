@@ -9,6 +9,13 @@ BLOCKLIST="/etc/iptables/blocklist.rules" # File to store block rules
 ALLOWED_ROOT_CIDR_START="10.0.0.0" # Allow root login CIDR start
 ALLOWED_ROOT_CIDR_END="10.0.0.3"   # Adjust CIDR end for allowed root logins
 
+# Ensure blocklist file exists
+if [ ! -f "$BLOCKLIST" ]; then
+    echo "Creating blocklist file: $BLOCKLIST"
+    sudo touch "$BLOCKLIST"
+    sudo chmod 600 "$BLOCKLIST"
+fi
+
 # Function to check if IP is already in the blocklist
 ip_exists_in_blocklist() {
     ip=$1
