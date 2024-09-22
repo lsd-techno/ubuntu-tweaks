@@ -83,7 +83,7 @@ monitor_ssh_attempts() {
             fi
         fi
 
-        # Check for login attempts with unknown or invalid users
+        # Check for Invalid user login attempts
         if echo "$line" | grep -q "Invalid user"; then
             ip=$(echo "$line" | grep -oP '(?<=from )\d+\.\d+\.\d+\.\d+')
             username=$(echo "$line" | grep -oP '(?<=Invalid user )\S+')
@@ -91,23 +91,29 @@ monitor_ssh_attempts() {
             add_to_blocklist "$ip"
         fi
 
-        # Log failed login attempts for valid users
+        # Check for failed login attempts (both invalid and valid users)
         if echo "$line" | grep -q "Failed password for"; then
             ip=$(echo "$line" | grep -oP '(?<=from )\d+\.\d+\.\d+\.\d+')
-            username=$(echo "$line" | grep -oP '(?<=Failed password for )\S+')
 
-            # Check if the user has /nologin shell to block remote IP
-            if is_nologin_user "$username"; then
-                echo "Login attempt for valid user $username with /nologin shell from IP: $ip"
-                add_to_blocklist "$ip"
+            if echo "$line" | grep -q "invalid user"; then
+                username=$(echo "$line" | grep -oP '(?<=invalid user )\S+')
+                echo "Failed login attempt for invalid user $username, from IP: $ip"
             else
-                echo "Failed login attempt for valid user $username, from IP: $ip"
+                username=$(echo "$line" | grep -oP '(?<=Failed password for )\S+')
+
+                # Check if the user has /nologin shell to block remote IP
+                if is_nologin_user "$username"; then
+                    echo "Login attempt for valid user $username with /nologin shell from IP: $ip"
+                    add_to_blocklist "$ip"
+                else
+                    echo "Failed login attempt for valid user $username, from IP: $ip"
+                fi
             fi
         fi
     done
 }
 
-# Monitor log file for port-scan entries and extract IPs
+# Monitor log file for port-scan entries and extract IPs to block them
 # To get `port-scan: ` reports on `syslog` add corresponding rules to iptables first
 # e.g. `-A INPUT -p tcp -m tcp --dport 222 -j LOG --log-prefix "port-scan: "`
 monitor_port_scans() {
